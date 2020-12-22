@@ -1,0 +1,282 @@
+---
+title: "Can external factors reduce fire losses in Toronto?"
+author: 'Jie Huang(1004925156)'
+date: "2020/12/22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE, echo=FALSE, include=FALSE}
+#install all packages that we used
+#install.packages('opendatatoronto')
+library(opendatatoronto)
+library(stats)
+library(dplyr)
+
+```
+
+```{r, message = FALSE, echo=FALSE, include=FALSE}
+# get package from the website Toronto Open Data Portal
+package <- show_package("64a26694-01dc-4ec3-aa87-ad8509604f50")
+package
+# get all resources for this package
+resources <- list_package_resources("64a26694-01dc-4ec3-aa87-ad8509604f50")
+# identify datastore resources; by default, Toronto Open Data sets datastore resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+# load the first datastore resource as a sample
+data <- filter(datastore_resources, row_number()==1) %>% get_resource()
+```
+
+
+```{r, message = FALSE, echo=FALSE, include=FALSE}
+#clean and create a new data frame what I want to analyze the different fire cases in Toronto with various perspectives 
+reduced_data <- 
+ data %>% 
+  dplyr::select(Extent_Of_Fire,
+         Method_Of_Fire_Control,
+         Civilian_Casualties,
+         Count_of_Persons_Rescued,
+         Estimated_Dollar_Loss,
+         Number_of_responding_personnel)
+#change the extent of fire from description to number
+reduced_data <- 
+  reduced_data %>%
+  mutate(extent_fire = case_when(Extent_Of_Fire == "1 - Confined to object of origin" ~ 1, 
+                          Extent_Of_Fire == "4 - Spread beyond room of origin, same floor" ~ 4,
+                          Extent_Of_Fire == "2 - Confined to part of room/area of origin" ~ 2,
+                          Extent_Of_Fire == "5 - Multi unit bldg: spread beyond suite of origin but not to separated suite(s)" ~ 5,
+                          Extent_Of_Fire == "3 - Spread to entire room of origin"~ 3,
+                          Extent_Of_Fire == "9 - Confined to roof/exterior structure" ~ 9,
+                          Extent_Of_Fire == "7 - Spread to other floors, confined to building" ~ 7,
+                          Extent_Of_Fire == "11 - Spread beyond building of origin, resulted in exposure fire(s)" ~ 11,
+                          Extent_Of_Fire == "6 - Multi unit bldg: spread to separate suite(s)" ~ 6,
+                          Extent_Of_Fire == "10 - Spread beyond building of origin" ~ 10,
+                          Extent_Of_Fire == "8- Entire Structure" ~ 8,
+                          ))
+#change the method of fire control from description to number
+reduced_data <- 
+  reduced_data %>%
+  mutate(fire_control = case_when(Method_Of_Fire_Control == "1 - Extinguished by fire department" ~ 1,
+                          Method_Of_Fire_Control == "2 - Extinguished by automatic system" ~ 2,
+                          Method_Of_Fire_Control == "3 - Extinguished by occupant" ~ 3,
+                          Method_Of_Fire_Control == "4 - Fire self extinguished" ~ 4,
+                          Method_Of_Fire_Control == "5 - Action taken unclassified"~ 5
+                          ))
+```
+
+```{r, message = FALSE, echo=FALSE, include=FALSE}
+#Since some cases do not have the records with some reasons. For example: the extent of fire do not have any description. So let's remove those cases with the NA from our data frame and only select the cases with data records validly.
+new_data=na.omit(reduced_data)
+#generate a sequence of 1004925156 numbers 
+set.seed(1004925156) 
+#randomly select 1000 data from the cleaning data to create a new set
+sample_data=new_data[sample(nrow(new_data), 1000), ] 
+sample_data
+```
+
+
+## Abstract
+Fires are adverse events that cause real damage to property and human life. In addition to these material costs, the extent to which fires are harmful to the natural environment is less direct and obvious. In this report, I would like to build a statistical model and aim to find the relationship between the extent of the fire and the method of fire control and estimate the values of civilian casualties, count of persons rescued, estimated dollar loss based on the number of responding personnel from Toronto Open Data Portal 2020 About Fire Incidents in Toronto. In other words, this model justifies the relationship between causes and control method of fire; meanwhile, it explains that the people and apparatus on-site help reduce the loss of fire incidence.
+
+
+## Keywords
+Propensity Score, Observational Study, Fire incidence, Causal Inference, Prevention Method
+
+
+
+## Introduction 
+The Canadian government widely uses statistical analysis in daily life. The most common ones are the crime rate and divorce rate. At the same time, statistical analysis can also summarize the recent fire incidences in Toronto and the casualties and property losses in the incidence. It is scientifically that "fire presents a significant risk to businesses. It can kill or seriously injure employees or visitors and can also damage or destroy buildings, equipment or stock."[1] In other words, with these data, the government can analyze these cases, then improve fire protection measures, or cause attention to reducing the fire incidences as possible. \newline
+
+
+Fire is a kind of harm to people, and it will pollute the environment and cause a certain degree of loss of people or society. To use the Toronto Open Data Portal data for analyzing the external factors that affect the loss in the fire incidence. The external factor is the number of responding personnel. I want to find the relationship between the extent of the fire and the method of fire control at the beginning to find the most common cause of the fire and the fastest way to extinguish the fire. Then I will find the connection between the fire loss and the external factors. \newline
+
+
+In the step-by-step analysis, the first step, I sort the dataset and clean the data to keep the main variables that I need, removing the NAs to reduce errors. Then I summary each variable and build a multiple linear regression model based on sorted data. Finally, I make a discussion on the results, strengths, and weaknesses of the model. \newline
+
+
+## Methodology
+
+# Data
+I download the datasets from the Toronto Open Data Potral. Then I use R studio to run code to help us select the valid respondents and clean the data with missing values(NA) and the undetermined data(99 - Undetermined) in the variable Extent_Of_Fire. In this project, the target population is all fire cases in Toronto in 2020; the frame is 17536 cases; the sample is 1000 cases. The 1000 cases are randomly selected from the dataset. \newline
+
+
+Table1: Extent of Fire \newlline
+
+Number | Description of fire extent |
+------|:-------------:|
+1 | Confined to object of origin |
+2 | Confined to part of room/area of origin |
+3 | Spread to entire room of origin |
+4 | Spread beyond room of origin, same floor |
+5 | Multi unit bldg: spread beyond suite of origin but not to separated suite(s)|
+6 | Multi unit bldg: spread to separate suite(s) |
+7 | Spread to other floors, confined to building |
+8 | Entire Structure |
+9 | Confined to roof/exterior structure |
+10 | Spread beyond building of origin |
+11 | Spread beyond building of origin, resulted in exposure fire(s) |
+
+Table1 shows that the extent of fire control and the ordering number will determine the different extent. \newline
+
+
+Table2: Extent of Fire \newlline
+
+Number | Description of fire control |
+------|:-------------:|
+1 | Extinguished by fire department |
+2 | Extinguished by automatic system |
+3 | Extinguished by occupant |
+4 | Fire self extinguished |
+5 | Action taken unclassified|
+
+Table2 shows that the method of fire control and the ordering number will determine the different styles. Still, I try to change these two tables' descriptions as numerical variables, summarized as a table to see the sum of various types and the relationship by plots. \newline
+
+Below is the overall summary table for our dataset: \newline
+Table3: Summary Table for the Overall Dataset \newline
+```{r, echo=FALSE}
+# write the summary table for our data
+summary(sample_data)
+```
+
+# Model
+I use R studio to build a multiple linear regression model to see an association between the three independent variables and the response variable. In addition, it is appropriate to use a multiple regression model to analyze the dataset, predicting the value of a variable based on the amount of two or more other variables. Besides, I set up a null hypothesis that the coefficients of predictor variables are equal to zero, indicating no association between the predictor variables and the response variable. Meanwhile, I choose the significance level of 0.05, to compare it with the p-value. \newline
+
+The response variable is number of responding personnel, and predictor variables are civilian casualties,count of persons rescued, and estimated dollar loss. \newline
+
+Plot1: Scatterplot of personnel and civilian casualties \newline
+
+```{r, message = FALSE, echo=FALSE}
+scatter.smooth(x=sample_data$Civilian_Casualties, y=sample_data$Number_of_responding_personnel, main="Personnel and civilian casualties")
+```
+
+The Plot1 along with the smoothing line above suggests a weak linearly increasing relationship between the number of responding personnel and civilian casualties variables. This is a good thing, because, one of the assumptions in linear regression is that the relationship between the response and predictor variables is linear. And there are some outliers in the plot.\newline
+
+
+Plot2: Scatterplot of personnel and persons rescued \newline
+```{r echo=FALSE}
+scatter.smooth(x=sample_data$Count_of_Persons_Rescued, y=sample_data$Number_of_responding_personnel, main="Personnel and person rescued")
+```
+
+
+There is a weak positive increasing line in the plot2 with some outliers. \newline
+
+
+Plot3: Scatterplot of personnel and estimated dollar loss \newline
+```{r,echo=FALSE}
+scatter.smooth(x=sample_data$Estimated_Dollar_Loss, y=sample_data$Number_of_responding_personnel, main="Personnel and estimated dollars loss")
+```
+
+
+The line in this plot is incresing at the beginning, then it starts to decrease. There are some outliers in this plot. \newline
+\newpage
+
+
+## Results
+By fitting the linear regression model, I find that the p-value in Table3 is < <2e-16, which is significantly smaller than 0.05. Thus I reject the null hypothesis. 
+Table3: Summary Table for Regression Model
+```{r,echo=FALSE}
+#multiple variable linear regression model for Education Data
+personnel_model_1 <- lm(Number_of_responding_personnel~Civilian_Casualties, data = sample_data)
+personnel_model_2 <- lm(Number_of_responding_personnel~Count_of_Persons_Rescued, data = sample_data)
+personnel_model_3 <- lm(Number_of_responding_personnel~Estimated_Dollar_Loss,data = sample_data)
+#summary of our Education Model
+summary(personnel_model_1)
+summary(personnel_model_1)
+summary(personnel_model_1)
+```
+
+
+
+\newpage
+--Diagonostic check:\newline
+Plot4: 4 differnt plots \newline
+```{r, echo=FALSE}
+#plot diagnostic check plots
+par(mfrow=c(2,2))
+plot(personnel_model_1)
+```
+
+In the residuals vs. fitted plot, the horizontal line in this plot indicates a linear relationship between the independent variable and the dependent variable.In the normal Q-Q plot, we can find that there is a right-skewed line. In the third plot, the line with a slightly increasing trend shows the 
+relationship between the root of standardized residuals and fitted values. Some residuals do not appear randomly spread. This last plot helps us to find influential cases. This plot is the typical look when there is no significant case or cases. It is barely to see Cook's distance lines (a red dashed line) because all cases are not well inside Cook's distance lines, meaning they have high Cookʼs distance scores, the cases are influential to the regression results.\newline
+
+
+Plot5: 4 different plots \newline
+```{r, echo=FALSE}
+#plot diagnostic check plots
+par(mfrow=c(2,2))
+plot(personnel_model_2)
+```
+In the residuals vs. fitted plot, the line is not a horizontal line and the trend of it is decreasing. In the normal Q-Q plot, we can find that there is a right-skewed line. In the third plot, the line with a strongly increasing trend. Some residuals do not appear randomly spread. This last plot helps us to find influential cases. It is barely to see Cook's distance lines because all cases are well inside Cook's distance lines, meaning they do not have high Cookʼs distance scores, the cases are not influential to the regression results.\newline
+
+
+Plot6: 4 differnt plots \newline
+```{r, echo=FALSE}
+#plot diagnostic check plots
+par(mfrow=c(2,2))
+plot(personnel_model_3)
+```
+
+
+In the residuals vs. fitted plot, the line is not a horizontal line and the trend of it is decreasing. In the normal Q-Q plot, we can find that there is a right-skewed line. In the third plot, the line with a strongly increasing trend. Some residuals do not appear randomly spread. This last plot is barely to see a red dashed line, which contains all the cases.\newline
+
+
+## Disscussion
+
+Summary: At the beginning, I try to clean the data and create a new data frame to analyze. After cleaning the data, I try to build the linear regression model to classify the relationship between the number of responding personnel and civilian casualties, count of persons rescued, estimated dollar loss. Then I build 4 plots for each variable to do some diagnostic checks to justify the correlation is strong and vaild. Finally, I got the results and make a conclusion. \newline
+
+The multiplier linear regression is fail. I cannot get the formula of the linear regression model. I try to find the correlations between the predictor and the three variables, however, I find that the relationship beyween is very week, meaning that we can ignore the relationship between them. And there are lots of debates after I complete the project. the number of people who would like to help the people in fire will affect the people rescued. But not every time someone is willing to help you. And the data has problems as well. The people rescued and civilation casaulties are very similar, we cannot define these two very clearly. \newline
+
+The p-value in this question is sbsolutely smaller than 0.05, but I cannot get the values of each variable in the same situation. Therefore, I cannot classify that the people will affect the fire. 
+
+
+## Weakness of Model and Possible Future Improvements
+
+First of all, the data we are using is not perfectly accurate, since I do not select a large sample set. Another weakness of the model is that the relationship between the predictor variable and response variable is real small, which means that they may do not have any connection. And for these data, I do not have a good survey to help analyze. To fix this problem, I think I need to change the predictor variable and response variable, finding some variables with strong relationship. Besides, to make the model more accurate, I can change the sample size and the add more useful predictors. If it is possible, I will try to find a survey about the fire incidence to help estimate in the future. 
+
+## Reference
+[1]Ahrens, M., et al. “Environmental Impact of Fire.” Fire Science Reviews, SpringerOpen, 1 Jan. 1970, firesciencereviews.springeropen.com/articles/10.1186/s40038-016-0014-1. \newline
+
+[2]data_hacks, and Harshita_Dudhe. “What Is the Singularity Error in Linear Regression.” Data Science, Analytics and Big Data Discussions, 8 Sept. 2015, discuss.analyticsvidhya.com/t/what-is-the-singularity-error-in-linear-regression/3924. \newline
+
+[3]Hadley Wickham, Romain François, Lionel Henry and Kirill Müller(2020). dplyr: A Grammar of Data Manipulation. R package version1.0.2. https://CRAN.R-project.org/package=dplyr \newline
+
+[4]“Healthy Working Lives - Fire.” Common Fire Related Hazards,
+www.healthyworkinglives.scot/workplace-guidance/safety/fire/Pages/fire-related-hazards.aspx. \newline
+
+[5]JohnKJohnK 16.8k88 gold badges5353 silver badges9898 bronze badges, et al. “How to Interpret a QQ Plot.” Cross Validated, 1 July 1963, 
+stats.stackexchange.com/questions/101274/how-to-interpret-a-qq-plot. \newline
+
+[6]“Open Data Dataset.” City of Toronto Open Data Portal, open.toronto.ca/dataset/fire-incidents/. \newline
+
+[7]R Core Team (2020). R: A language and environment for statistical
+  computing. R Foundation for Statistical Computing, Vienna, Austria.
+  URL https://www.R-project.org/. \newline
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

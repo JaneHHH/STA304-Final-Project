@@ -1,9 +1,13 @@
 ---
 title: "Can external factors reduce fire losses in Toronto?"
-author: 'Jie Huang(1004925156)'
+author: "Jie Huang(1004925156)"
 date: "2020/12/22"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
+
+Code and data supporting this analysis is available at:https://github.com/JaneHHH/STA304-Final-Project
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -103,7 +107,7 @@ In the step-by-step analysis, the first step, I sort the dataset and clean the d
 I download the datasets from the Toronto Open Data Potral. Then I use R studio to run code to help us select the valid respondents and clean the data with missing values(NA) and the undetermined data(99 - Undetermined) in the variable Extent_Of_Fire. In this project, the target population is all fire cases in Toronto in 2020; the frame is 17536 cases; the sample is 1000 cases. The 1000 cases are randomly selected from the dataset. \newline
 
 
-Table1: Extent of Fire \newlline
+Table1: Extent of Fire \newline
 
 Number | Description of fire extent |
 ------|:-------------:|
@@ -122,7 +126,7 @@ Number | Description of fire extent |
 Table1 shows that the extent of fire control and the ordering number will determine the different extent. \newline
 
 
-Table2: Extent of Fire \newlline
+Table2: Extent of Fire \newline
 
 Number | Description of fire control |
 ------|:-------------:|
@@ -184,8 +188,8 @@ personnel_model_2 <- lm(Number_of_responding_personnel~Count_of_Persons_Rescued,
 personnel_model_3 <- lm(Number_of_responding_personnel~Estimated_Dollar_Loss,data = sample_data)
 #summary of our Education Model
 summary(personnel_model_1)
-summary(personnel_model_1)
-summary(personnel_model_1)
+summary(personnel_model_2)
+summary(personnel_model_3)
 ```
 
 
